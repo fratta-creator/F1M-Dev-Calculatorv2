@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f0f13">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="F1 Dev">
+<title>F1 Manager — Dev Calculator</title>
+<link id="manifest-link" rel="manifest">
+<style>
+:root{
+  --bg:#0f0f13;--bg2:#1a1a24;--bg3:#22222e;
+  --border:#2a2a35;--text:#e2e2e8;--muted:#888;--hint:#555;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:14px}
+#root{display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto}
+
+.header{padding:14px 16px 10px;flex-shrink:0;border-bottom:1px solid var(--border)}
+.header h1{font-size:16px;font-weight:600;letter-spacing:-.2px}
+.header p{font-size:11px;color:var(--muted);margin-top:2px}
+
+.tabbar{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg)}
+.tabbar button{flex:1;padding:10px 4px;border:none;background:none;color:var(--muted);font-size:12px;font-family:inherit;cursor:pointer;border-bottom:2px solid transparent;transition:.15s}
+.tabbar button.active{color:var(--text);border-bottom-color:var(--text);font-weight:600}
+
+.content{flex:1;overflow-y:auto;padding:14px 16px 40px;-webkit-overflow-scrolling:touch}
+
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.card-sm{background:var(--bg2);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+
+.rank-header{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.rank-num{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.rank-name{font-size:14px;font-weight:600;flex:1}
+.bar-track{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin:4px 0}
+.bar-fill{height:100%;border-radius:3px;transition:width .4s}
+.badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;margin-left:40px}
+
+.strategy{background:var(--bg2);border-radius:12px;padding:14px;margin-top:6px;font-size:13px;color:var(--muted);line-height:1.7}
+.strategy strong{color:var(--text)}
+.strategy h3{font-size:10px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chip{padding:5px 12px;font-size:12px;cursor:pointer;border-radius:20px;border:1px solid var(--border);background:var(--bg2);color:var(--muted);font-family:inherit;transition:.15s}
+.chip.active{font-weight:600}
+
+.input-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.input-group label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px}
+input[type=number]{width:100%;padding:7px 9px;font-size:13px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:inherit;-webkit-appearance:none}
+input[type=number]:focus{outline:none;border-color:#4a9eff}
+.attr-top{display:flex;justify-content:space-between;align-items:center}
+.attr-label{font-size:13px;font-weight:500}
+.attr-weight{font-size:10px;color:var(--hint);margin-top:1px}
+
+.section-label{font-size:10px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.tip{background:var(--bg2);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--muted);line-height:1.6;margin-top:6px}
+
+#install-banner{display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#4a9eff;color:#fff;border-radius:12px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 4px 20px #0006;z-index:999;border:none;font-family:inherit;white-space:nowrap}
+</style>
+</head>
+<body>
+<div id="root">
+  <div class="header">
+    <h1>F1 Manager 2024 — Dev Calc</h1>
+    <p>Cadillac · Temporada 2024</p>
+  </div>
+  <div class="tabbar">
+    <button class="active" onclick="setTab('ranking',this)">🏆 Ranking</button>
+    <button onclick="setTab('dados',this)">✏️ Dados</button>
+    <button onclick="setTab('config',this)">⚙️ Config</button>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+<button id="install-banner" onclick="installApp()">⬇️ Instalar como App</button>
+
+<script>
+const COMPS = {
+  sidepods:{
+    label:"Sidepods",color:"#e8453c",
+    attrs:[
+      {key:"arrasto",     label:"Redução de arrasto", unit:"%", weight:3},
+      {key:"resfMotor",   label:"Resfr. motor",        unit:"%", weight:2},
+      {key:"fluxoDiant",  label:"Fluxo dianteiro",     unit:"%", weight:3},
+      {key:"fluxoCentral",label:"Fluxo central",       unit:"%", weight:2},
+    ],
+    defaults:{
+      arrasto:     {mine:52.60,avg:61.46},
+      resfMotor:   {mine:54.60,avg:59.55},
+      fluxoDiant:  {mine:52.60,avg:62.77},
+      fluxoCentral:{mine:52.60,avg:46.01},
+    }
+  },
+  chassi:{
+    label:"Chassi",color:"#f5a623",
+    attrs:[
+      {key:"arrasto",     label:"Redução de arrasto",unit:"%",weight:3},
+      {key:"deltaDRS",    label:"Delta de DRS",      unit:"%",weight:2},
+      {key:"resfMotor",   label:"Resfr. motor",      unit:"%",weight:2},
+      {key:"fluxoCentral",label:"Fluxo central",     unit:"%",weight:2},
+    ],
+    defaults:{
+      arrasto:     {mine:52.60,avg:55.49},
+      deltaDRS:    {mine:50.60,avg:51.95},
+      resfMotor:   {mine:54.60,avg:53.17},
+      fluxoCentral:{mine:52.60,avg:56.94},
+    }
+  },
+  suspensao:{
+    label:"Suspensão",color:"#4a9eff",
+    attrs:[
+      {key:"arrasto",    label:"Redução de arrasto", unit:"%", weight:2},
+      {key:"velBaixa",   label:"Sust. neg. — baixa", unit:"kN",weight:2},
+      {key:"velMedia",   label:"Sust. neg. — média", unit:"kN",weight:3},
+      {key:"velAlta",    label:"Sust. neg. — alta",  unit:"kN",weight:2},
+      {key:"preservPneu",label:"Preserv. pneus",     unit:"%", weight:3},
+      {key:"fluxoDiant", label:"Fluxo dianteiro",    unit:"%", weight:3},
+    ],
+    defaults:{
+      arrasto:    {mine:67.02,avg:57.21},
+      velBaixa:   {mine:4.21, avg:4.17},
+      velMedia:   {mine:6.15, avg:6.18},
+      velAlta:    {mine:7.52, avg:7.56},
+      preservPneu:{mine:63.79,avg:50.94},
+      fluxoDiant: {mine:46.92,avg:57.09},
+    }
+  },
+  assoalho:{
+    label:"Assoalho",color:"#1ec776",
+    attrs:[
+      {key:"arrasto",  label:"Redução de arrasto",  unit:"%", weight:2},
+      {key:"velBaixa", label:"Sust. neg. — baixa",  unit:"kN",weight:2},
+      {key:"velMedia", label:"Sust. neg. — média",  unit:"kN",weight:3},
+      {key:"velAlta",  label:"Sust. neg. — alta",   unit:"kN",weight:2},
+      {key:"sensFluAr",label:"Sensib. fluxo de ar", unit:"%", weight:2},
+    ],
+    defaults:{
+      arrasto:  {mine:52.60,avg:55.96},
+      velBaixa: {mine:4.05, avg:4.14},
+      velMedia: {mine:6.05, avg:6.15},
+      velAlta:  {mine:7.53, avg:7.55},
+      sensFluAr:{mine:52.60,avg:56.64},
+    }
+  },
+  asaDiant:{
+    label:"Asa Dianteira",color:"#a259ff",
+    attrs:[
+      {key:"velBaixa",   label:"Sust. neg. — baixa", unit:"kN",weight:2},
+      {key:"velMedia",   label:"Sust. neg. — média", unit:"kN",weight:3},
+      {key:"velAlta",    label:"Sust. neg. — alta",  unit:"kN",weight:2},
+      {key:"preservPneu",label:"Preserv. pneus",     unit:"%", weight:3},
+      {key:"sensFluAr",  label:"Sensib. fluxo de ar",unit:"%", weight:2},
+      {key:"fluxoDiant", label:"Fluxo dianteiro",    unit:"%", weight:2},
+    ],
+    defaults:{
+      velBaixa:   {mine:4.29, avg:4.17},
+      velMedia:   {mine:6.29, avg:6.18},
+      velAlta:    {mine:7.64, avg:7.56},
+      preservPneu:{mine:60.28,avg:48.94},
+      sensFluAr:  {mine:68.87,avg:57.79},
+      fluxoDiant: {mine:71.18,avg:58.45},
+    }
+  },
+  asaTras:{
+    label:"Asa Traseira",color:"#00c9c9",
+    attrs:[
+      {key:"arrasto",  label:"Redução de arrasto", unit:"%", weight:3},
+      {key:"deltaDRS", label:"Delta de DRS",        unit:"%", weight:2},
+      {key:"velBaixa", label:"Sust. neg. — baixa", unit:"kN",weight:2},
+      {key:"velMedia", label:"Sust. neg. — média",  unit:"kN",weight:3},
+      {key:"velAlta",  label:"Sust. neg. — alta",  unit:"kN",weight:2},
+      {key:"sensFluAr",label:"Sensib. fluxo de ar",unit:"%", weight:2},
+    ],
+    defaults:{
+      arrasto: {mine:65.09,avg:55.90},
+      deltaDRS:{mine:62.34,avg:56.98},
+      velBaixa:{mine:4.39, avg:4.16},
+      velMedia:{mine:6.15, avg:6.15},
+      velAlta: {mine:7.68, avg:7.56},
+      sensFluAr:{mine:68.95,avg:57.36},
+    }
+  },
+};
+
+function loadState(){
+  try{
+    const s=JSON.parse(localStorage.getItem("f1calc_v2")||"null");
+    if(s) return s;
+  }catch(e){}
+  const data={};
+  Object.entries(COMPS).forEach(([k,c])=>{
+    data[k]={};
+    c.attrs.forEach(a=>{data[k][a.key]={mine:c.defaults[a.key].mine,avg:c.defaults[a.key].avg};});
+  });
+  return{tab:"ranking",activeComp:"sidepods",data};
+}
+let S=loadState();
+function save(){try{localStorage.setItem("f1calc_v2",JSON.stringify(S));}catch(e){}}
+
+function calcScore(compKey){
+  let total=0;
+  COMPS[compKey].attrs.forEach(a=>{
+    const d=S.data[compKey][a.key]||{mine:0,avg:0};
+    const def=(parseFloat(d.avg)||0)-(parseFloat(d.mine)||0);
+    if(def>0) total+=def*(a.weight||1);
+  });
+  return total;
+}
+
+function getRanked(){
+  return Object.keys(COMPS)
+    .map(k=>({key:k,label:COMPS[k].label,color:COMPS[k].color,score:calcScore(k)}))
+    .sort((a,b)=>b.score-a.score)
+    .map((s,i)=>({...s,rank:i+1}));
+}
+
+function rankColor(r){return r===1?"#e8453c":r===2?"#f5a623":r===3?"#4a9eff":"#555";}
+function rankLabel(r){return r===1?"Máxima prioridade":r===2?"Alta prioridade":r===3?"Média prioridade":"Baixa prioridade";}
+function hex(c,a){return c+Math.round(a*255).toString(16).padStart(2,"0");}
+
+function renderRanking(){
+  const list=getRanked();
+  const maxScore=Math.max(...list.map(r=>r.score),0.01);
+  let h=`<div class="section-label">Ranking — pontuação ponderada por peso</div>`;
+
+  list.forEach(r=>{
+    const deficits=COMPS[r.key].attrs.map(a=>{
+      const d=S.data[r.key][a.key]||{mine:0,avg:0};
+      const def=(parseFloat(d.avg)||0)-(parseFloat(d.mine)||0);
+      return{label:a.label.split("—")[0].trim(),def,weight:a.weight};
+    }).filter(x=>x.def>0).sort((a,b)=>b.def*b.weight-a.def*a.weight);
+    const pct=Math.round((r.score/maxScore)*100);
+    const rc=rankColor(r.rank);
+    h+=`<div class="card">
+      <div class="rank-header">
+        <div class="rank-num" style="background:${hex(rc,.15)};color:${rc}">${r.rank}°</div>
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="rank-name">${r.label}</span>
+            <span class="badge" style="background:${hex(rc,.18)};color:${rc}">${rankLabel(r.rank)}</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${rc}"></div></div>
+        </div>
+      </div>
+      <div class="tags">
+        ${deficits.length===0
+          ?'<span class="badge" style="background:#1ec77622;color:#1ec776">Acima da média em todos atributos</span>'
+          :deficits.map(d=>`<span class="badge" style="background:#e8453c22;color:#e8453c">${d.label}: -${d.def.toFixed(2)} ×${d.weight}</span>`).join("")}
+      </div>
+    </div>`;
+  });
+
+  const top=list[0],sec=list[1],ter=list[2];
+  h+=`<div class="strategy">
+    <h3>Estratégia recomendada</h3>
+    Foque sua próxima pesquisa em <strong>${top.label}</strong> — maior déficit ponderado do grid.
+    Se tiver engenheiros disponíveis, rode <strong>${sec.label}</strong> em paralelo.
+    Após concluir ambos, avance para <strong>${ter.label}</strong>.
+  </div>`;
+  return h;
+}
+
+function renderDados(){
+  const comp=COMPS[S.activeComp];
+  let h=`<div class="chips">
+    ${Object.entries(COMPS).map(([k,c])=>`
+      <button class="chip${S.activeComp===k?" active":""}"
+        style="${S.activeComp===k?`border-color:${c.color};background:${hex(c.color,.12)};color:${c.color}`:""}"
+        onclick="selectComp('${k}')">${c.label}</button>`).join("")}
+  </div>`;
+
+  comp.attrs.forEach(a=>{
+    const d=S.data[S.activeComp][a.key]||{mine:0,avg:0};
+    const def=(parseFloat(d.avg)||0)-(parseFloat(d.mine)||0);
+    const isGood=def<=0;
+    const wDef=def*(a.weight||1);
+    h+=`<div class="card-sm">
+      <div class="attr-top">
+        <div>
+          <div class="attr-label">${a.label}</div>
+          <div class="attr-weight">Peso: ${a.weight} · impacto: ${isGood?"+":"-"}${Math.abs(wDef).toFixed(2)}</div>
+        </div>
+        <span class="badge" style="background:${isGood?"#1ec77622":"#e8453c22"};color:${isGood?"#1ec776":"#e8453c"}">
+          ${isGood?"+"+Math.abs(def).toFixed(2)+" acima":"-"+Math.abs(def).toFixed(2)+" abaixo"}
+        </span>
+      </div>
+      <div class="input-row">
+        <div class="input-group">
+          <label>Seu carro (${a.unit})</label>
+          <input type="number" step="0.01" value="${d.mine}"
+            onchange="updateVal('${S.activeComp}','${a.key}','mine',this.value)">
+        </div>
+        <div class="input-group">
+          <label>Adversário / Média (${a.unit})</label>
+          <input type="number" step="0.01" value="${d.avg}"
+            onchange="updateVal('${S.activeComp}','${a.key}','avg',this.value)">
+        </div>
+      </div>
+    </div>`;
+  });
+  return h;
+}
+
+function renderConfig(){
+  return`
+  <div class="section-label">Sistema de pontuação</div>
+  <div class="card-sm" style="font-size:12px;color:var(--muted);line-height:1.9">
+    O ranking usa <strong style="color:var(--text)">déficit × peso</strong> para cada atributo.<br>
+    <strong style="color:var(--text)">Peso 3</strong> = atributo crítico &nbsp;·&nbsp; <strong style="color:var(--text)">Peso 2</strong> = atributo relevante<br>
+    Atributos acima da média não contribuem negativamente.
+  </div>
+  <div class="tip" style="margin-top:10px">
+    💾 Dados salvos automaticamente no dispositivo.<br>
+    Atualize os valores do carro sempre que instalar uma peça nova.
+  </div>
+  <div class="card-sm" style="margin-top:10px">
+    <button onclick="resetData()" style="width:100%;padding:9px;background:#e8453c22;color:#e8453c;border:1px solid #e8453c44;border-radius:7px;font-family:inherit;font-size:13px;cursor:pointer;font-weight:600">
+      🔄 Restaurar dados originais
+    </button>
+  </div>`;
+}
+
+function setTab(tab,btn){
+  S.tab=tab;save();
+  document.querySelectorAll(".tabbar button").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  render();
+}
+function selectComp(k){S.activeComp=k;save();render();}
+function updateVal(comp,key,field,value){
+  if(!S.data[comp][key]) S.data[comp][key]={mine:0,avg:0};
+  S.data[comp][key][field]=parseFloat(value)||0;
+  save();render();
+}
+function resetData(){
+  if(!confirm("Restaurar todos os dados originais?")) return;
+  const data={};
+  Object.entries(COMPS).forEach(([k,c])=>{
+    data[k]={};
+    c.attrs.forEach(a=>{data[k][a.key]={mine:c.defaults[a.key].mine,avg:c.defaults[a.key].avg};});
+  });
+  S.data=data;save();render();
+}
+
+function render(){
+  const map={ranking:renderRanking,dados:renderDados,config:renderConfig};
+  document.getElementById("content").innerHTML=(map[S.tab]||renderRanking)();
+}
+
+/* PWA manifest */
+const manifest={name:"F1 Manager Dev Calculator",short_name:"F1 Dev",start_url:"./",display:"standalone",background_color:"#0f0f13",theme_color:"#0f0f13",orientation:"portrait",icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%230f0f13'/%3E%3Ctext x='96' y='130' font-size='110' text-anchor='middle' fill='%23e8453c'%3E🏎%3C/text%3E%3C/svg%3E",sizes:"192x192",type:"image/svg+xml"}]};
+document.getElementById("manifest-link").href=URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:"application/json"}));
+
+/* Service Worker offline */
+if("serviceWorker" in navigator){
+  const sw=`const C="f1v2";self.addEventListener("install",e=>{self.skipWaiting();});self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim();});self.addEventListener("fetch",e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));});`;
+  navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:"application/javascript"}))).catch(()=>{});
+}
+
+/* Install prompt */
+let deferredPrompt=null;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredPrompt=e;document.getElementById("install-banner").style.display="block";});
+function installApp(){if(!deferredPrompt)return;deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;document.getElementById("install-banner").style.display="none";});}
+
+render();
+</script>
+</body>
+</html>
